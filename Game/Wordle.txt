@@ -1,0 +1,312 @@
+// =============================================
+// Stonescript Wordle
+// Version: 1.0
+// Author: Gemini Code Assist
+// =============================================
+//
+// Description:
+// A Wordle-like word guessing game.
+// Guess the 5-letter word in 6 tries.
+//
+// Instructions:
+// Import with: import Games/Wordle
+//
+// =============================================
+
+var initialized = false
+?initialized
+    update()
+    return
+
+?loc.begin
+    initialized = true
+
+// --- UI & Layout Constants ---
+var TILE_SIZE = 5
+var TILE_GAP = 1
+var KEY_W = 4
+var KEY_H = 3
+
+// --- Colors ---
+var COLOR_DEFAULT = "#333333"
+var COLOR_CORRECT = "#008800" // Green
+var COLOR_PRESENT = "#B8B800" // Yellow
+var COLOR_ABSENT = "#555555"  // Gray
+var COLOR_TEXT = "#FFFFFF"
+
+// --- Game State Variables ---
+var wordList = [
+    "STONE", "QUEST", "SWORD", "MAGIC", "FIGHT", "ENEMY", "ARMOR", "SHARD", "BLADE",
+    "CRAFT", "HEART", "MIGHT", "POWER", "SHINE", "SPELL", "STORY", "WATER", "WORLD",
+    "ANGER", "BEAST", "BONES", "CAVES", "CHEST", "CRATE", "DEATH", "DEMON", "DRUID",
+    "FLAME", "GHOST", "GIANT", "GUARD", "HANDS", "HATCH", "HORDE", "HUMAN", "IDOLS",
+    "JEWEL", "KINGS", "KNIFE", "LEVER", "LIGHT", "METAL", "MINES", "MYTHS", "NIGHT",
+    "ORACLE", "POISON", "POTION", "RINGS", "ROCKS", "RUINS", "SCROLL", "SHIELD",
+    "SKULL", "SLIME", "SOULS", "SPAWN", "SPIKE", "STAFF", "STEEL", "TAROT", "THROW",
+    "TOKEN", "TOMBS", "TRADE", "TRAPS", "TREES", "TROLL", "VAULT", "VENOM", "VIGOR",
+    "WALLS", "WANDS", "WINGS", "WITCH", "WORMS", "YETIS"
+]
+var secretWord = ""
+var secretWordArr = []
+var currentGuess = ""
+var currentRow = 0
+var isGameOver = false
+var message = ""
+
+// --- UI Element Variables ---
+var mainPanel
+var gridTiles = [ [], [], [], [], [], [] ]
+var keyboardButtons = []
+var messageText
+
+// =============================================
+// FUNCTIONS
+// =============================================
+
+func StartGame()
+    disable hud
+    disable player
+    ui.Clear()
+
+    // --- Main Panel ---
+    mainPanel = ui.AddPanel()
+    mainPanel.w = screen.w
+    mainPanel.h = screen.h
+
+    // --- Title ---
+    var title = ui.AddText()
+    title.dock = top_center
+    title.y = 2
+    title.text = "S T O N E - L E"
+    title.color = #yellow
+    mainPanel.Add(title)
+
+    // --- Message Text ---
+    messageText = ui.AddText()
+    messageText.dock = top_center
+    messageText.y = 4
+    messageText.color = #cyan
+    mainPanel.Add(messageText)
+
+    // --- Grid Panel ---
+    var gridPanel = ui.AddPanel()
+    gridPanel.dock = center_center
+    gridPanel.y = -5
+    gridPanel.w = 5 * TILE_SIZE + 4 * TILE_GAP
+    gridPanel.h = 6 * TILE_SIZE + 5 * TILE_GAP
+    mainPanel.Add(gridPanel)
+
+    for r = 0..5
+        for c = 0..4
+            var tile = ui.AddPanel()
+            tile.w = TILE_SIZE
+            tile.h = TILE_SIZE - 2
+            tile.style = 2 // Box style
+            tile.color = COLOR_DEFAULT
+            tile.x = c * (TILE_SIZE + TILE_GAP) - gridPanel.w/2 + TILE_SIZE/2
+            tile.y = r * (TILE_SIZE + TILE_GAP) - gridPanel.h/2 + TILE_SIZE/2
+            gridPanel.Add(tile)
+
+            var letter = ui.AddText("")
+            letter.dock = center_center
+            tile.Add(letter)
+
+            gridTiles[r].Add([tile, letter])
+
+    // --- Keyboard ---
+    var keyboardPanel = ui.AddPanel()
+    keyboardPanel.dock = bottom_center
+    keyboardPanel.y = -2
+    keyboardPanel.w = 10 * KEY_W + 9 * TILE_GAP
+    keyboardPanel.h = 3 * KEY_H + 2 * TILE_GAP
+    mainPanel.Add(keyboardPanel)
+
+    var keys = [ "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM" ]
+    var enterKey
+    var backKey
+
+    for r = 0..2
+        var keyRow = keys[r]
+        var rowLen = string.Size(keyRow)
+        for c = 0..rowLen-1
+            var keyChar = string.Sub(keyRow, c, 1)
+            var btn = ui.AddButton()
+            btn.w = KEY_W
+            btn.h = KEY_H
+            btn.text = keyChar
+            btn.x = c * (KEY_W + TILE_GAP) - (rowLen * (KEY_W + TILE_GAP) / 2) + KEY_W/2
+            btn.y = r * (KEY_H + TILE_GAP) - keyboardPanel.h/2 + KEY_H/2
+            btn.SetPressed(OnKeyPress)
+            keyboardPanel.Add(btn)
+            keyboardButtons.Add([keyChar, btn])
+
+    // Special Keys
+    enterKey = ui.AddButton()
+    enterKey.w = 6
+    enterKey.h = KEY_H
+    enterKey.text = "ENTER"
+    enterKey.x = 5 * (KEY_W + TILE_GAP)
+    enterKey.y = 1 * (KEY_H + TILE_GAP) - keyboardPanel.h/2 + KEY_H/2
+    enterKey.SetPressed(OnEnterPress)
+    keyboardPanel.Add(enterKey)
+
+    backKey = ui.AddButton()
+    backKey.w = 6
+    backKey.h = KEY_H
+    backKey.text = "BACK"
+    backKey.x = -5 * (KEY_W + TILE_GAP)
+    backKey.y = 2 * (KEY_H + TILE_GAP) - keyboardPanel.h/2 + KEY_H/2
+    backKey.SetPressed(OnBackPress)
+    keyboardPanel.Add(backKey)
+
+    // --- Reset Button ---
+    var resetButton = ui.AddButton()
+    resetButton.dock = top_right
+    resetButton.x = -5
+    resetButton.y = 1
+    resetButton.text = "RESET"
+    resetButton.w = 8
+    resetButton.h = 3
+    resetButton.SetPressed(ResetGame)
+    mainPanel.Add(resetButton)
+
+    ResetGame()
+
+func ResetGame()
+    // Select a new word
+    var wordIndex = rng % wordList.Count()
+    secretWord = wordList[wordIndex]
+    secretWordArr.Clear()
+    for i = 0..4
+        secretWordArr.Add(string.Sub(secretWord, i, 1))
+
+    // Reset game state
+    currentGuess = ""
+    currentRow = 0
+    isGameOver = false
+    message = "Guess the 5-letter word!"
+
+    // Reset grid UI
+    for r = 0..5
+        for c = 0..4
+            gridTiles[r][c][0].color = COLOR_DEFAULT
+            gridTiles[r][c][1].text = ""
+
+    // Reset keyboard UI
+    for i = 0..keyboardButtons.Count()-1
+        keyboardButtons[i][1].bcolor = "#888888"
+        keyboardButtons[i][1].tcolor = COLOR_TEXT
+
+func OnKeyPress(btn)
+    ?isGameOver | string.Size(currentGuess) >= 5
+        return
+
+    currentGuess = currentGuess + btn.text
+    UpdateCurrentRow()
+
+func OnEnterPress()
+    ?isGameOver | currentRow >= 6
+        return
+
+    ?string.Size(currentGuess) ! 5
+        message = "Not enough letters!"
+        return
+
+    SubmitGuess()
+
+func OnBackPress()
+    ?isGameOver | string.Size(currentGuess) = 0
+        return
+
+    currentGuess = string.Sub(currentGuess, 0, string.Size(currentGuess) - 1)
+    UpdateCurrentRow()
+
+func UpdateCurrentRow()
+    message = ""
+    var guessLen = string.Size(currentGuess)
+    for c = 0..4
+        ?c < guessLen
+            gridTiles[currentRow][c][1].text = string.Sub(currentGuess, c, 1)
+        :
+            gridTiles[currentRow][c][1].text = ""
+
+func SubmitGuess()
+    var tempSecret = []
+    for i = 0..4
+        tempSecret.Add(secretWordArr[i])
+
+    var feedback = ["", "", "", "", ""]
+
+    // First pass: Check for correct letters (green)
+    for i = 0..4
+        var letter = string.Sub(currentGuess, i, 1)
+        ?letter = tempSecret[i]
+            feedback[i] = "correct"
+            tempSecret[i] = null // Mark as used
+
+    // Second pass: Check for present letters (yellow)
+    for i = 0..4
+        ?feedback[i] = ""
+            var letter = string.Sub(currentGuess, i, 1)
+            var found = false
+            for j = 0..4
+                ?letter = tempSecret[j]
+                    feedback[i] = "present"
+                    tempSecret[j] = null // Mark as used
+                    found = true
+                    break
+            ? !found
+                feedback[i] = "absent"
+
+    // Apply feedback to grid and keyboard
+    for i = 0..4
+        var color
+        ?feedback[i] = "correct"
+            color = COLOR_CORRECT
+        :?feedback[i] = "present"
+            color = COLOR_PRESENT
+        :
+            color = COLOR_ABSENT
+
+        gridTiles[currentRow][i][0].color = color
+        UpdateKeyboardColor(string.Sub(currentGuess, i, 1), color)
+
+    // Check for win/loss
+    ?currentGuess = secretWord
+        message = "You won! Well done!"
+        isGameOver = true
+        play treasure_item_show
+        return
+
+    currentRow++
+    currentGuess = ""
+
+    ?currentRow >= 6
+        message = "Game Over! The word was " + secretWord
+        isGameOver = true
+        play haunted_gate_point_lost
+
+func UpdateKeyboardColor(keyChar, color)
+    for i = 0..keyboardButtons.Count()-1
+        ?keyboardButtons[i][0] = keyChar
+            var btn = keyboardButtons[i][1]
+            // Don't downgrade from green
+            ?btn.bcolor = COLOR_CORRECT
+                return
+            // Don't downgrade from yellow to gray
+            ?btn.bcolor = COLOR_PRESENT & color = COLOR_ABSENT
+                return
+
+            btn.bcolor = color
+            btn.tcolor = COLOR_TEXT
+            return
+
+func update()
+    ?messageText
+        messageText.text = message
+
+// =============================================
+// SCRIPT ENTRY POINT
+// =============================================
+
+StartGame()
