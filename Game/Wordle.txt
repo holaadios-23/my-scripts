@@ -1,7 +1,7 @@
 // =============================================
 // Stonescript Wordle
 // Version: 1.0
-// Author: Gemini Code Assist
+// Author: holadios_
 // =============================================
 //
 // Description:
