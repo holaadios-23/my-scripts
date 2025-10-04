@@ -2,7 +2,7 @@ from flask import Flask, render_template, request
 from markupsafe import escape # La función escape ahora se importa desde aquí
 def create_app():
     app = Flask(__name__) # Inicializamos la aplicación Flask
-    @app.route('/') # Definimos una ruta para la página principal
+    @app.route('/Wordle') # Definimos una ruta para la página principal
     def home():
         try:
             with open('Game/Wordle.txt', 'r', encoding='utf-8') as f:
