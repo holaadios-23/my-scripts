@@ -3,7 +3,7 @@ from flask import Flask, send_from_directory, abort
 from markupsafe import escape
 
 # Directorio que queremos compartir. Por seguridad, el servidor solo tendrá acceso a esta carpeta.
-SHARE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'texts'))
+SHARE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Game'))
 
 def create_app():
     app = Flask(__name__) # Inicializamos la aplicación Flask
@@ -41,10 +41,10 @@ def create_app():
             return send_from_directory(directory, filename, as_attachment=False)
         
         # Si no se encuentra, devolvemos un error 404
-        try:
-            return abort(404)
-        except Exception as e:
-            return str(e)
+        #try:
+        return abort(404)
+        #except Exception as e:
+            #return str(e)
 
     return app
 

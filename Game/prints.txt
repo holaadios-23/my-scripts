@@ -1,0 +1,60 @@
+>`0,1,left: @item.left@\nright: @item.right@
+>`9,3,left state: @item.left.state@
+^ right state: @item.right.state@
+>`9,4,screen: @screen.i@
+var incre = 0
+?loc.loop
+ incre++
+>`9,5,foe state: @foe.state@
+^ time: @foe.time@ distance: @foe.distance@
+>`9,6,foe @foe.id@ hp: @foe.hp@
+>`9,7,foes: @foe.count@
+>`9,8,stars: @loc.stars@
+>`9,9,loop: @incre@
+?loc.gp > MaxGP()
+ >`9,10,#FF0000,GP @loc.gp@/@MaxGP()@
+:
+ >`9,10,#00FF00,GP @loc.gp@/@MaxGP()@
+>`0,11,total time @totaltime/1800@m
+^ @(totaltime/30)%60@s => @totaltime@f\n
+^best time: @loc.bestTime/1800@m 
+^@(loc.bestTime/30)%60@s => @loc.bestTime@f
+var element
+var eledebil
+?foe = ice
+ element = ice
+ eledebil = fire
+:?foe = poison
+ element = poison
+ eledebil = ice
+:?foe = vigor
+ element = vigor
+ eledebil = poison
+:?foe = aether
+ eledebil = vigor
+:?foe = fire
+ eledebil = aether
+>`0,13,@element@ is weak to @eledebil@
+
+func MaxGP()
+ var gp = 999999
+ ?loc.stars = 5
+  gp = 150
+ ?loc.stars = 10
+  gp = 200
+ ?loc = ＂rocky＂
+  gp = gp * 3
+ return gp
+ 
+>c-27,12,#rainbow, Player: @player.name@
+
+>h-3,-2,#FFD700,ascii
+#|\__/|
+#)   #(
+=\  v /=
+##)__(
+asciiend
+>h-3,-1,#4ec9b0,###! !
+var fr = 9
+?time / fr % 9 = 8
+ >h-3,-1,#4ec9b0,###. .
